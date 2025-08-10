@@ -49,7 +49,7 @@ export const slackCallback = async (req: Request, res: Response) => {
       },
     });
 
-    res.redirect(`${process.env.FRONTEND_URL}/dashboard`);
+    res.redirect(`${process.env.FRONTEND_URL}/dashboard?redirected=${true}`);
   } catch (err) {
     console.error('Slack OAuth Error:', err);
     res.status(500).json({ error: 'OAuth failed' });

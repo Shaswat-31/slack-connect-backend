@@ -4,19 +4,20 @@ import axios from 'axios';
 
 export const slackCallback = async (req: Request, res: Response) => {
   const code = req.query.code as string;
-  const state = req.query.state as string; 
+  const state = req.query.state as string;
 
-const userId = decodeURIComponent(state);
-  if(!userId){
-    return res.status(500).json({ error: 'OAuth failed because user id missing' });
+  const userId = decodeURIComponent(state);
+  if (!userId) {
+    return res.status(400).json({ error: 'OAuth failed because user id missing' });
   }
+
   try {
     const tokenRes = await axios.post('https://slack.com/api/oauth.v2.access', null, {
       params: {
         code,
         client_id: process.env.SLACK_CLIENT_ID,
         client_secret: process.env.SLACK_CLIENT_SECRET,
-        redirect_uri: `${process.env.SLACK_REDIRECT_URI}`,
+        redirect_uri: process.env.SLACK_REDIRECT_URI, 
       },
     });
 
@@ -25,33 +26,35 @@ const userId = decodeURIComponent(state);
     }
 
     const { access_token, refresh_token, scope, bot_user_id, team } = tokenRes.data;
-    const slack=await prisma.user.findUnique({
-      where:{
-        id:userId
+
+    await prisma.slackIntegration.upsert({
+      where: { userId },
+      update: {
+        accessToken: access_token,
+        refreshToken: refresh_token || null,
+        scope,
+        botUserId: bot_user_id,
+        teamId: team.id,
+        teamName: team.name,
       },
-      include:{
-        slack:true
-      }
-    });
-    await prisma.slackIntegration.update({
-      where: { id: slack?.id },
-      data: {
-          accessToken: access_token,
-          refreshToken: refresh_token || null,
-          scope,
-          botUserId: bot_user_id,
-          teamId: team.id,
-          teamName: team.name,
+      create: {
+        userId,
+        accessToken: access_token,
+        refreshToken: refresh_token || null,
+        scope,
+        botUserId: bot_user_id,
+        teamId: team.id,
+        teamName: team.name,
       },
     });
 
-    // Redirect back to frontend
     res.redirect(`${process.env.FRONTEND_URL}/dashboard`);
   } catch (err) {
-    console.error(err);
+    console.error('Slack OAuth Error:', err);
     res.status(500).json({ error: 'OAuth failed' });
   }
 };
+
 
 export const slackConnect=async(req:Request, res:Response) => {
   console.log("slack connect");

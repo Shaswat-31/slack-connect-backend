@@ -36,7 +36,8 @@ export const slackCallback = async (req: Request, res: Response) => {
         botUserId: bot_user_id,
         teamId: team.id,
         teamName: team.name,
-        userAccessToken:authed_user.access_token
+        userAccessToken:authed_user.access_token,
+        userRefreshToken:authed_user.refresh_token
       },
       create: {
         userId,
@@ -89,16 +90,16 @@ async function getUserSlackToken(userId: string) {
     throw new Error("Slack integration not found for user");
   }
 
-  const { accessToken, refreshToken } = slackIntegration;
+  const { accessToken, refreshToken, userAccessToken,userRefreshToken } = slackIntegration;
   try {
     const authTestRes = await axios.get("https://slack.com/api/auth.test", {
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Authorization: `Bearer ${userAccessToken}` },
     });
 
     if (authTestRes.data.ok) {
-      return accessToken;
+      return userAccessToken;
     } else {
-      if (!refreshToken) {
+      if (!userRefreshToken) {
         throw new Error("No refresh token available");
       }
       const tokenRefreshRes = await axios.post(
@@ -109,7 +110,7 @@ async function getUserSlackToken(userId: string) {
             grant_type: "refresh_token",
             client_id: process.env.SLACK_CLIENT_ID,
             client_secret: process.env.SLACK_CLIENT_SECRET,
-            refresh_token: refreshToken,
+            refresh_token: userRefreshToken,
           },
         }
       );
@@ -120,13 +121,13 @@ async function getUserSlackToken(userId: string) {
 
       // Update DB with new access token and refresh token (if returned)
       const newAccessToken = tokenRefreshRes.data.access_token;
-      const newRefreshToken = tokenRefreshRes.data.refresh_token || refreshToken;
+      const newRefreshToken = tokenRefreshRes.data.refresh_token || userRefreshToken;
 
       await prisma.slackIntegration.update({
         where: { userId },
         data: {
-          accessToken: newAccessToken,
-          refreshToken: newRefreshToken,
+          userAccessToken: newAccessToken,
+          userRefreshToken: newRefreshToken,
         },
       });
 
@@ -249,18 +250,19 @@ export const sendScheduledMessages=async (req: Request, res: Response) => {
   }
 
   try {
+    const postAtUnix = Math.floor(new Date(postAt).getTime() / 1000);
     const slackRes = await axios.post(
       "https://slack.com/api/chat.scheduleMessage",
       {
         channel: channelId,
         text: message,
-        post_at: postAt,
+        post_at: postAtUnix,
       },
       {
         headers: { Authorization: `Bearer ${slackToken}` },
       }
     );
-
+    //console.log(slackRes);
     if (!slackRes.data.ok) {
       return res.status(400).json({ error: slackRes.data.error });
     }

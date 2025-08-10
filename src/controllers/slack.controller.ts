@@ -16,7 +16,7 @@ const userId = decodeURIComponent(state);
         code,
         client_id: process.env.SLACK_CLIENT_ID,
         client_secret: process.env.SLACK_CLIENT_SECRET,
-        redirect_uri: `${process.env.BACKEND_URL}/api/slack/callback`,
+        redirect_uri: `${process.env.SLACK_REDIRECT_URI}`,
       },
     });
 
@@ -58,8 +58,8 @@ export const slackConnect=async(req:Request, res:Response) => {
   const clientId = process.env.SLACK_CLIENT_ID;
    const userId = req.user?.id; 
     const state = encodeURIComponent(userId as string);
-  const redirectUri = encodeURIComponent(`${process.env.BACKEND_URL}/api/slack/callback`);
-  const scope = encodeURIComponent('channels:read chat:write');
+  const redirectUri = `${process.env.SLACK_REDIRECT_URI}`;
+  const scope = 'channels:read chat:write';
   const url = `https://slack.com/oauth/v2/authorize?client_id=${clientId}&scope=${scope}&redirect_uri=${redirectUri}&state=${state}`;
   //const anUrl='https://slack.com/oauth/v2/authorize?client_id=339171545393.9352700732976&scope=chat:write,channels:read,groups:read,channels:join&redirect_uri=https://oauth.pstmn.io/v1/callback'
   res.json({ redirectUrl: url });

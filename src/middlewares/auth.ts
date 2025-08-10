@@ -15,6 +15,7 @@ export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction)
     const payload = jwt.verify(token, process.env.JWT_SECRET as string);
     console.log(payload);
     req.user = payload;
+    req.user.id=payload.sub
     next();
   } catch (err) {
     return res.status(401).json({ error: 'Invalid token' });

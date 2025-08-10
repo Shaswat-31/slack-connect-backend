@@ -36,7 +36,7 @@ export const login = async (req: Request, res: Response) => {
 
     // sign JWT
     const token = jwt.sign(
-      { sub: user.id, email: user.email }, 
+      { sub: user.id, email: user.email, id:user.id }, 
       process.env.JWT_SECRET as string,
       { expiresIn: '1h' } // short-lived access token
     );

@@ -25,7 +25,7 @@ export const slackCallback = async (req: Request, res: Response) => {
       return res.status(400).json({ error: tokenRes.data.error });
     }
     console.log(tokenRes);
-    const { access_token, refresh_token, scope, bot_user_id, team } = tokenRes.data;
+    const { access_token, refresh_token, scope, bot_user_id, team, authed_user } = tokenRes.data;
 
     await prisma.slackIntegration.upsert({
       where: { userId },
@@ -36,6 +36,7 @@ export const slackCallback = async (req: Request, res: Response) => {
         botUserId: bot_user_id,
         teamId: team.id,
         teamName: team.name,
+        userAccessToken:authed_user.access_token
       },
       create: {
         userId,
@@ -62,8 +63,18 @@ export const slackConnect=async(req:Request, res:Response) => {
    const userId = req.user?.id; 
     const state = encodeURIComponent(userId as string);
   const redirectUri = `${process.env.SLACK_REDIRECT_URI}`;
-  const scope = 'channels:read chat:write';
-  const url = `https://slack.com/oauth/v2/authorize?client_id=${clientId}&scope=${scope}&redirect_uri=${redirectUri}&state=${state}`;
+  const scope = 'channels:read chat:write channels:join groups:read';
+  const userScopes=[
+  "channels:read",       // user can read channel info
+  "chat:write",          // user can send messages as themselves
+  "groups:read",         // user can read private channels info
+  "im:read",             // user can read direct messages
+  "mpim:read",           // user can read multi-party DMs
+  "users:read",          // read user profile info
+  "users:read.email",    // read user email address
+  // Add any other user scopes your app requires
+].join(",");
+  const url = `https://slack.com/oauth/v2/authorize?client_id=${clientId}&scope=${scope}&user_scope=${userScopes}&redirect_uri=${redirectUri}&state=${state}`;
   //const anUrl='https://slack.com/oauth/v2/authorize?client_id=339171545393.9352700732976&scope=chat:write,channels:read,groups:read,channels:join&redirect_uri=https://oauth.pstmn.io/v1/callback'
   res.json({ redirectUrl: url });
 }

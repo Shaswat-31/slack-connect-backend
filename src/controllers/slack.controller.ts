@@ -53,11 +53,12 @@ export const slackCallback = async (req: Request, res: Response) => {
 };
 
 export const slackConnect=async(req:Request, res:Response) => {
+  console.log("slack connect");
   const clientId = process.env.SLACK_CLIENT_ID;
   const redirectUri = encodeURIComponent(`${process.env.BACKEND_URL}/api/slack/callback`);
   const scope = encodeURIComponent('channels:read chat:write');
 
   const url = `https://slack.com/oauth/v2/authorize?client_id=${clientId}&scope=${scope}&redirect_uri=${redirectUri}`;
-
-  res.redirect(url);
+  const anUrl='https://slack.com/oauth/v2/authorize?client_id=339171545393.9352700732976&scope=chat:write,channels:read,groups:read,channels:join&redirect_uri=https://oauth.pstmn.io/v1/callback'
+  res.json({ redirectUrl: url });
 }

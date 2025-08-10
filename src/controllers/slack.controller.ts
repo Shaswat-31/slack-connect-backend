@@ -47,6 +47,8 @@ export const slackCallback = async (req: Request, res: Response) => {
         botUserId: bot_user_id,
         teamId: team.id,
         teamName: team.name,
+        userAccessToken:authed_user.access_token,
+        userRefreshToken:authed_user.refresh_token
       },
     });
 

@@ -75,7 +75,7 @@ export const slackConnect=async(req:Request, res:Response) => {
   "im:read",           
   "mpim:read",        
   "users:read",         
-  "users:read.email",    
+  "users:read.email"    
   // Add any other user scopes your app requires
 ].join(",");
   const url = `https://slack.com/oauth/v2/authorize?client_id=${clientId}&scope=${scope}&user_scope=${userScopes}&redirect_uri=${redirectUri}&state=${state}`;
@@ -366,7 +366,9 @@ export const sendScheduledMessages=async (req: Request, res: Response) => {
   }
 
   try {
-    const postAtUnix = Math.floor(new Date(postAt).getTime() / 1000);
+const localDate = new Date(postAt); 
+const postAtUnix = Math.floor((localDate.getTime() - (localDate.getTimezoneOffset() * 60000)) / 1000);
+console.log(postAtUnix);
     const slackRes = await axios.post(
       "https://slack.com/api/chat.scheduleMessage",
       {

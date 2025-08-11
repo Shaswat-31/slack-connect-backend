@@ -50,10 +50,10 @@ export const login = async (req: Request, res: Response) => {
         slackAccessToken, 
       }, 
       process.env.JWT_SECRET as string,
-      { expiresIn: '1h' }
+     { expiresIn: '5d' }
     );
 
-    return res.json({ accessToken: token,slackAccessToken, name:user.name, tokenType: 'Bearer', expiresIn: 3600 });
+    return res.json({ accessToken: token,slackAccessToken, name:user.name, tokenType: 'Bearer',  expiresIn: 432000  });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Server error' });

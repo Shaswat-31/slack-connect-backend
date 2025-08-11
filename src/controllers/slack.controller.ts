@@ -149,7 +149,71 @@ async function getUserSlackToken(userId: string) {
     throw new Error("Error validating or refreshing Slack token: " + err);
   }
 }
+async function getBotSlackToken(userId: string) {
+  const slackIntegration = await prisma.slackIntegration.findUnique({
+    where: { userId },
+  });
+  if (!slackIntegration) {
+    throw new Error("Slack integration not found for user");
+  }
+  console.log("slack",slackIntegration);
 
+  const { accessToken, refreshToken, userAccessToken,userRefreshToken } = slackIntegration;
+  try {
+   const authTestRes = await axios.post(
+  "https://slack.com/api/auth.test",
+  {},
+  {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json; charset=utf-8",
+    },
+  }
+);
+    console.log("auth result",authTestRes.data);
+    if (authTestRes.data.ok) {
+      return accessToken;
+    } else {
+      if (!userRefreshToken) {
+        throw new Error("No refresh token available");
+      }
+      console.log("trying to get another token")
+      const tokenRefreshRes = await axios.post(
+        "https://slack.com/api/oauth.v2.access",
+        null,
+        {
+          params: {
+            grant_type: "refresh_token",
+            client_id: process.env.SLACK_CLIENT_ID,
+            client_secret: process.env.SLACK_CLIENT_SECRET,
+            refresh_token: refreshToken,
+          },
+        }
+      );
+      console.log(tokenRefreshRes.data);
+
+      if (!tokenRefreshRes.data.ok) {
+        throw new Error("Failed to refresh Slack token: " + tokenRefreshRes.data.error);
+      }
+
+      // Update DB with new access token and refresh token (if returned)
+      const newAccessToken = tokenRefreshRes.data.access_token;
+      const newRefreshToken = tokenRefreshRes.data.refresh_token || refreshToken;
+
+      await prisma.slackIntegration.update({
+        where: { userId },
+        data: {
+          accessToken: newAccessToken,
+          refreshToken: newRefreshToken,
+        },
+      });
+
+      return newAccessToken;
+    }
+  } catch (err) {
+    throw new Error("Error validating or refreshing Slack token: " + err);
+  }
+}
 // 1. Get Slack Channels
 export const getChannels = async (req: Request, res: Response) => {
   try {
@@ -218,13 +282,27 @@ export const joinChannel = async (req: Request, res: Response) => {
 export const sendMessage = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.id;
-    const { channelId, text } = req.body;
+    const { channelId, text, userType } = req.body;
 
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
     if (!channelId || !text)
       return res.status(400).json({ error: "channelId and text required" });
-
-    const token = await getUserSlackToken(userId);
+    let token;
+    if(userType==="user"){
+      token = await getUserSlackToken(userId);
+    }else{
+       token = await getBotSlackToken(userId);
+       const response = await axios.post(
+      `${SLACK_API_BASE}/conversations.join`,
+      { channel: channelId },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    }
 
     const response = await axios.post(
       `${SLACK_API_BASE}/chat.postMessage`,
@@ -243,7 +321,16 @@ export const sendMessage = async (req: Request, res: Response) => {
     if (!response.data.ok) {
       return res.status(400).json({ error: response.data.error });
     }
-
+    const message = await prisma.message.create({
+      data: {
+        userId: userId,
+        messageText: text,
+        slackChannelId: channelId,
+        slackMessageId: response.data.ts, 
+        messageType: "immediately",
+        messageBy: userType==="user"?"user":"bot",
+      },
+    });
     res.json({ message: "Message sent", ts: response.data.ts });
   } catch (error: any) {
     console.error("Error sending message:", error);
@@ -252,11 +339,26 @@ export const sendMessage = async (req: Request, res: Response) => {
 };
 
 export const sendScheduledMessages=async (req: Request, res: Response) => {
-  const { channelId, message, postAt } = req.body;
+  const { channelId, message, postAt, userType } = req.body;
   const userId = req.user?.id;
   if (!userId) return res.status(401).json({ error: "Unauthorized" });
-  const slackToken = await getUserSlackToken(userId);
-
+  // const slackToken = await getUserSlackToken(userId);
+  let slackToken;
+    if(userType==="user"){
+      slackToken = await getUserSlackToken(userId);
+    }else{
+       slackToken = await getBotSlackToken(userId);
+       const response = await axios.post(
+      `${SLACK_API_BASE}/conversations.join`,
+      { channel: channelId },
+      {
+        headers: {
+          Authorization: `Bearer ${slackToken}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    }
   if (!slackToken || !channelId || !message || !postAt) {
     return res.status(400).json({ error: "Missing required fields" });
   }
@@ -279,7 +381,17 @@ export const sendScheduledMessages=async (req: Request, res: Response) => {
       return res.status(400).json({ error: slackRes.data.error });
     }
 
-    // Save slackRes.data.scheduled_message_id and other info in your DB here
+     const dbMessage = await prisma.message.create({
+      data: {
+        userId: userId,
+        messageText: message,
+        slackChannelId: channelId,
+        slackMessageId: slackRes.data.scheduled_message_id,
+        postAt: postAt,
+        messageType: "scheduled",
+        messageBy: userType==="user"?"user":"bot",
+      },
+    });
 
     return res.json({ scheduledMessageId: slackRes.data.scheduled_message_id });
   } catch (error) {
@@ -313,7 +425,16 @@ export const sendScheduledMessages=async (req: Request, res: Response) => {
       return res.status(400).json({ error: slackRes.data.error });
     }
 
-    // Update your DB to mark message as canceled
+     const updatedMessage = await prisma.message.updateMany({
+      where: {
+        userId,
+        slackChannelId: channelId,
+        slackMessageId: scheduledMessageId,
+      },
+      data: {
+        messageType: "canceled", 
+      },
+    });
 
     return res.json({ message: "Scheduled message canceled" });
   } catch (error) {
@@ -321,3 +442,43 @@ export const sendScheduledMessages=async (req: Request, res: Response) => {
     return res.status(500).json({ error: "Server error" });
   }
 }
+export const getMessages = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const messages = await prisma.message.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+    });
+
+    res.json({ messages });
+  } catch (error: any) {
+    console.error("Error fetching messages:", error);
+    res.status(500).json({ error: error.message || "Internal server error" });
+  }
+};
+
+export const getMessagesForParticularChannel = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const channelId=req.params.channelId;
+
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const messages = await prisma.message.findMany({
+      where: { userId,slackChannelId:channelId },
+      orderBy: { createdAt: "desc" },
+    });
+
+    res.json({ messages });
+  } catch (error: any) {
+    console.error("Error fetching messages:", error);
+    res.status(500).json({ error: error.message || "Internal server error" });
+  }
+};

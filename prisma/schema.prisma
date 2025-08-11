@@ -13,6 +13,7 @@ enum UserRoles{
 enum MessageType{
     immediately 
     scheduled
+    canceled
 }
 enum MessageBy{
     user 

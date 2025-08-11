@@ -67,27 +67,16 @@ export const slackConnect=async(req:Request, res:Response) => {
    const userId = req.user?.id; 
     const state = encodeURIComponent(userId as string);
   const redirectUri = `${process.env.SLACK_REDIRECT_URI}`;
-  const scope = [
-  "chat:write",
-  "channels:join",
-  "channels:read",
-  "groups:write",
-  "im:write",
-  "mpim:write",
-].join(",");
- const userScopes = [
-  "channels:read",
-  "channels:write",
-  "chat:write",
-  "channels:join",
-  "groups:read",
-  "groups:write",
-  "im:read",
-  "im:write",
-  "mpim:read",
-  "mpim:write",
-  "users:read",
-  "users:read.email",
+  const scope = 'channels:read chat:write channels:join groups:read';
+  const userScopes=[
+  "channels:read",     
+  "chat:write",        
+  "groups:read",       
+  "im:read",           
+  "mpim:read",        
+  "users:read",         
+  "users:read.email",    
+  // Add any other user scopes your app requires
 ].join(",");
   const url = `https://slack.com/oauth/v2/authorize?client_id=${clientId}&scope=${scope}&user_scope=${userScopes}&redirect_uri=${redirectUri}&state=${state}`;
   //const anUrl='https://slack.com/oauth/v2/authorize?client_id=339171545393.9352700732976&scope=chat:write,channels:read,groups:read,channels:join&redirect_uri=https://oauth.pstmn.io/v1/callback'

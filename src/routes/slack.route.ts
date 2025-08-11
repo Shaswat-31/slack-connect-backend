@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { deleteScheduledMessages, getChannels, getMessages, getMessagesForParticularChannel, joinChannel, sendMessage, sendScheduledMessages, slackCallback, slackConnect } from '../controllers/slack.controller';
+import { deleteScheduledMessages, getChannels, getMessages, getMessagesForParticularChannel, joinChannel, messageGenerator, sendMessage, sendScheduledMessages, slackCallback, slackConnect } from '../controllers/slack.controller';
 import { requireAuth } from '../middlewares/auth';
 
 
@@ -13,6 +13,7 @@ router.get('/channels',requireAuth,getChannels);
 router.post('/join',requireAuth,joinChannel);
 router.post('/message',requireAuth,sendMessage);
 router.post('/schedule/message',requireAuth,sendScheduledMessages);
+router.post('/message/ai',messageGenerator);
 router.delete('/schedule/deleteMessages',requireAuth,deleteScheduledMessages);
 
 export default router;

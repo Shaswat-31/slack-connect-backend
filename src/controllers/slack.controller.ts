@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../utils/db';
 import axios from 'axios';
+import { OpenAI } from "openai";
 
 export const slackCallback = async (req: Request, res: Response) => {
   const code = req.query.code as string;
@@ -400,11 +401,17 @@ export const sendScheduledMessages=async (req: Request, res: Response) => {
   }
 };
  export const deleteScheduledMessages=async (req: Request, res: Response) => {
-  const { channelId, scheduledMessageId } = req.body;
+  const { messageId } = req.body;
    const userId = req.user?.id;
   if (!userId) return res.status(401).json({ error: "Unauthorized" });
   const slackToken = await getUserSlackToken(userId);
-
+  const message=await prisma.message.findUnique({
+    where:{
+      id:messageId
+    }
+  });
+  const channelId=message?.slackChannelId;
+  const scheduledMessageId=message?.slackMessageId;
   if (!slackToken || !channelId || !scheduledMessageId) {
     return res.status(400).json({ error: "Missing required fields" });
   }
@@ -420,13 +427,14 @@ export const sendScheduledMessages=async (req: Request, res: Response) => {
         headers: { Authorization: `Bearer ${slackToken}` },
       }
     );
-
+    console.log(slackRes.data);
     if (!slackRes.data.ok) {
       return res.status(400).json({ error: slackRes.data.error });
     }
 
-     const updatedMessage = await prisma.message.updateMany({
+     const updatedMessage = await prisma.message.update({
       where: {
+        id:messageId,
         userId,
         slackChannelId: channelId,
         slackMessageId: scheduledMessageId,
@@ -480,5 +488,34 @@ export const getMessagesForParticularChannel = async (req: Request, res: Respons
   } catch (error: any) {
     console.error("Error fetching messages:", error);
     res.status(500).json({ error: error.message || "Internal server error" });
+  }
+};
+
+const client = new OpenAI({
+  baseURL: "https://router.huggingface.co/v1",
+  apiKey: process.env.HF_API_TOKEN,
+});
+
+export const messageGenerator = async (req: Request, res: Response) => {
+  try {
+    const prompt = req.body.prompt || "Hello world";
+
+    const chatCompletion = await client.chat.completions.create({
+  model: "openai/gpt-oss-120b:fireworks-ai",
+  messages: [
+    {
+      role: "user",
+      content: `Please improve and rewrite the following sentence to make it clearer and more natural waht you need to do is to only return a single sentence say nothing else I will use whatever you return directly in frontend: "${prompt}"`,
+    },
+  ],
+});
+
+    // The generated response text
+    const generatedMessage = chatCompletion.choices[0].message;
+
+    return res.status(200).json({ generated: generatedMessage });
+  } catch (error: any) {
+    console.error("Error in messageGenerator:", error);
+    return res.status(500).json({ error: error.message || "Internal Server Error" });
   }
 };

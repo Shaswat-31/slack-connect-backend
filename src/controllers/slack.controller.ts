@@ -91,19 +91,28 @@ async function getUserSlackToken(userId: string) {
   if (!slackIntegration) {
     throw new Error("Slack integration not found for user");
   }
+  console.log("slack",slackIntegration);
 
   const { accessToken, refreshToken, userAccessToken,userRefreshToken } = slackIntegration;
   try {
-    const authTestRes = await axios.get("https://slack.com/api/auth.test", {
-      headers: { Authorization: `Bearer ${userAccessToken}` },
-    });
-
+   const authTestRes = await axios.post(
+  "https://slack.com/api/auth.test",
+  {},
+  {
+    headers: {
+      Authorization: `Bearer ${userAccessToken}`,
+      "Content-Type": "application/json; charset=utf-8",
+    },
+  }
+);
+    console.log("auth result",authTestRes.data);
     if (authTestRes.data.ok) {
       return userAccessToken;
     } else {
       if (!userRefreshToken) {
         throw new Error("No refresh token available");
       }
+      console.log("trying to get another token")
       const tokenRefreshRes = await axios.post(
         "https://slack.com/api/oauth.v2.access",
         null,
@@ -116,6 +125,7 @@ async function getUserSlackToken(userId: string) {
           },
         }
       );
+      console.log(tokenRefreshRes.data);
 
       if (!tokenRefreshRes.data.ok) {
         throw new Error("Failed to refresh Slack token: " + tokenRefreshRes.data.error);
@@ -149,7 +159,7 @@ export const getChannels = async (req: Request, res: Response) => {
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
     const token = await getUserSlackToken(userId);
-
+    console.log("user token",token);
     const response = await axios.get(`${SLACK_API_BASE}/conversations.list`, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -166,7 +176,7 @@ export const getChannels = async (req: Request, res: Response) => {
 
     res.json(response.data.channels);
   } catch (error: any) {
-    console.error("Error fetching channels:", error);
+    console.error("Error fetching channels:");
     res.status(500).json({ error: error.message || "Internal server error" });
   }
 };

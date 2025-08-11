@@ -10,7 +10,14 @@ datasource db {
 enum UserRoles{
   user
 }
-
+enum MessageType{
+    immediately 
+    scheduled
+}
+enum MessageBy{
+    user 
+    bot
+}
 model User {
   id        String             @id @default(auto()) @map("_id") @db.ObjectId
   email     String             @unique
@@ -19,7 +26,7 @@ model User {
   role      UserRoles             @default(user)
   
   slack     SlackIntegration?
-
+  messages  Message[]
   createdAt DateTime           @default(now())
   updatedAt DateTime           @updatedAt
 }
@@ -28,7 +35,7 @@ model SlackIntegration {
   id           String   @id @default(auto()) @map("_id") @db.ObjectId
   
   user         User     @relation(fields: [userId], references: [id])
-  userId       String   @unique @db.ObjectId // unique ensures only one SlackIntegration per user
+  userId       String   @unique @db.ObjectId 
 
   accessToken  String
   refreshToken String?
@@ -38,6 +45,24 @@ model SlackIntegration {
   teamName     String
   userAccessToken  String?
   userRefreshToken String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Message{
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  
+  user         User     @relation(fields: [userId], references: [id])
+  userId       String   @db.ObjectId 
+
+  slackMessageId String?
+  slackChannelId String?
+  messageText   String? 
+  postAt     String?
+
+  messageType  MessageType @default(immediately)
+  messageBy  MessageBy  @default(user)
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }

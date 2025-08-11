@@ -1,6 +1,9 @@
 Slack Backend API
 Backend API for Slack Connect integration. Handles authentication, messaging, scheduling, and AI-based message generation.
 
+   frontend live url : https://slack-connect-frontend-flame.vercel.app
+   backend live url: https://slack-connect-backend-tau.vercel.app
+
 Setup & Run Locally
 1. Clone the repository
 git clone <your-repo-url>

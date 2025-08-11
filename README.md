@@ -61,4 +61,4 @@ npx prisma db push — push schema to database without migrations
 
 npx prisma migrate dev — run migrations and generate client
 
-All Apis postman link - https://slack-connect-9789.postman.co/workspace/slack-connect-Workspace~d18dd739-7da4-401f-836b-64b6296dd714/collection/36428315-3a8eec3f-41a8-49d6-a38f-b24b7f0b3bc2?action=share&creator=36428315
+All slack Apis used in project postman link - https://slack-connect-9789.postman.co/workspace/slack-connect-Workspace~d18dd739-7da4-401f-836b-64b6296dd714/collection/36428315-3a8eec3f-41a8-49d6-a38f-b24b7f0b3bc2?action=share&creator=36428315

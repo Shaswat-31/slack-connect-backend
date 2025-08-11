@@ -67,16 +67,27 @@ export const slackConnect=async(req:Request, res:Response) => {
    const userId = req.user?.id; 
     const state = encodeURIComponent(userId as string);
   const redirectUri = `${process.env.SLACK_REDIRECT_URI}`;
-  const scope = 'channels:read chat:write channels:join groups:read';
-  const userScopes=[
-  "channels:read",       // user can read channel info
-  "chat:write",          // user can send messages as themselves
-  "groups:read",         // user can read private channels info
-  "im:read",             // user can read direct messages
-  "mpim:read",           // user can read multi-party DMs
-  "users:read",          // read user profile info
-  "users:read.email",    // read user email address
-  // Add any other user scopes your app requires
+  const scope = [
+  "chat:write",
+  "channels:join",
+  "channels:read",
+  "groups:write",
+  "im:write",
+  "mpim:write",
+].join(",");
+ const userScopes = [
+  "channels:read",
+  "channels:write",
+  "chat:write",
+  "channels:join",
+  "groups:read",
+  "groups:write",
+  "im:read",
+  "im:write",
+  "mpim:read",
+  "mpim:write",
+  "users:read",
+  "users:read.email",
 ].join(",");
   const url = `https://slack.com/oauth/v2/authorize?client_id=${clientId}&scope=${scope}&user_scope=${userScopes}&redirect_uri=${redirectUri}&state=${state}`;
   //const anUrl='https://slack.com/oauth/v2/authorize?client_id=339171545393.9352700732976&scope=chat:write,channels:read,groups:read,channels:join&redirect_uri=https://oauth.pstmn.io/v1/callback'
@@ -344,6 +355,7 @@ export const sendScheduledMessages=async (req: Request, res: Response) => {
   const userId = req.user?.id;
   if (!userId) return res.status(401).json({ error: "Unauthorized" });
   // const slackToken = await getUserSlackToken(userId);
+  console.log("post at time",postAt);
   let slackToken;
     if(userType==="user"){
       slackToken = await getUserSlackToken(userId);
@@ -377,7 +389,7 @@ export const sendScheduledMessages=async (req: Request, res: Response) => {
         headers: { Authorization: `Bearer ${slackToken}` },
       }
     );
-    //console.log(slackRes);
+    console.log(slackRes.data);
     if (!slackRes.data.ok) {
       return res.status(400).json({ error: slackRes.data.error });
     }
